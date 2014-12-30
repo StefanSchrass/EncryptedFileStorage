@@ -1,4 +1,4 @@
-package de.sschrass.android.utils.encryptedfilestorage;
+package de.sschrass.android.utils.encryptedfilestorage.database;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
@@ -8,7 +8,7 @@ import android.util.Log;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "contents.db";
-    private static final int DATABASE_VERSION = 1;
+    private static int DATABASE_VERSION = 1;
     private static final CursorFactory cursorFactory = null; //null means default
 
     private static final String TABLE_CONTENTS = "contents";
@@ -26,15 +26,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         super(context, DATABASE_NAME, cursorFactory, DATABASE_VERSION);
     }
 
+    /** is called by the framework, if the database is accessed but not yet created.
+     *
+     * @param database
+     */
     @Override
     public void onCreate(SQLiteDatabase database) {
         database.execSQL(DATABASE_CREATE);
     }
 
+    /**  called, if the database version is increased in your application code. This method allows you to update an existing database schema or to drop the existing database and recreate it via the onCreate() method.
+     *
+     * @param database
+     * @param oldVersion
+     * @param newVersion
+     */
     @Override
     public void onUpgrade(SQLiteDatabase database, int oldVersion, int newVersion) {
-        Log.w(DatabaseHelper.class.getName(),
-                "Upgrading database from version " + oldVersion + " to " + newVersion + ", which will destroy all old data");
+        Log.w(DatabaseHelper.class.getName(), "Upgrading database from version " + oldVersion + " to " + newVersion + ", which will destroy all old data");
+        this.DATABASE_VERSION = newVersion;
         database.execSQL("DROP TABLE IF EXISTS " + TABLE_CONTENTS);
         onCreate(database);
     }

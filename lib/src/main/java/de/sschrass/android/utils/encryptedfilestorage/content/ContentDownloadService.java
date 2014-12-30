@@ -1,10 +1,11 @@
-package de.sschrass.android.utils.encryptedfilestorage;
+package de.sschrass.android.utils.encryptedfilestorage.content;
 
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
 import android.util.Log;
+
+import de.sschrass.android.utils.encryptedfilestorage.database.DatabaseHelper;
 
 public class ContentDownloadService extends Service {
     private static final String TAG = "ContentDownloadService";
@@ -15,13 +16,8 @@ public class ContentDownloadService extends Service {
         super.onCreate();
         Log.d(TAG, "Service created");
 
-        DatabaseHelper databaseHelper = new DatabaseHelper();
+        DatabaseHelper databaseHelper = new DatabaseHelper(this);
 
-    }
-
-    public static String getApplicationName(Context context) {
-        int stringId = context.getApplicationInfo().labelRes;
-        return context.getString(stringId);
     }
 
     @Override
