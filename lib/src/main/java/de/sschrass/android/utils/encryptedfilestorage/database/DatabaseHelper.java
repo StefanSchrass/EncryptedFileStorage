@@ -11,10 +11,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static int DATABASE_VERSION = 1;
     private static final CursorFactory cursorFactory = null; //null means default
 
-    private static final String TABLE_CONTENTS = "contents";
-    private static final String COLUMN_ID = "_id";
-    private static final String COLUMN_CONTENT_ID = "content_id";
-    private static final String COLUMN_CONTENT_AVAILABILITY_END = "availability_end";
+    public static final String TABLE_CONTENTS = "contents";
+    public static final String COLUMN_ID = "_id";
+    public static final String COLUMN_CONTENT_ID = "content_id";
+    public static final String COLUMN_CONTENT_AVAILABILITY_END = "availability_end";
+
     private static final String DATABASE_CREATE = "create table "
             + TABLE_CONTENTS + "("
             + COLUMN_ID + " integer primary key autoincrement, "
@@ -35,7 +36,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         database.execSQL(DATABASE_CREATE);
     }
 
-    /**  called, if the database version is increased in your application code. This method allows you to update an existing database schema or to drop the existing database and recreate it via the onCreate() method.
+    /**  called, if the database version is increased in the application code. This method allows you to update an existing database schema or to drop the existing database and recreate it via the onCreate() method.
      *
      * @param database
      * @param oldVersion
@@ -44,7 +45,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase database, int oldVersion, int newVersion) {
         Log.w(DatabaseHelper.class.getName(), "Upgrading database from version " + oldVersion + " to " + newVersion + ", which will destroy all old data");
-        this.DATABASE_VERSION = newVersion;
+        DATABASE_VERSION = newVersion;
         database.execSQL("DROP TABLE IF EXISTS " + TABLE_CONTENTS);
         onCreate(database);
     }
