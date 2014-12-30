@@ -1,4 +1,4 @@
-package de.sschrass.android.utils.encryptedfilesafe;
+package de.sschrass.android.utils.encryptedfilestorage;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="de.sschrass.android.utils.encryptedfilesafe" >
+    package="de.sschrass.android.utils.encryptedfilestorage" >
 
     <application
         android:allowBackup="true"
@@ -8,7 +8,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <service
-            android:name=".ContentDownloadService"
+            android:name="de.sschrass.android.utils.encryptedfilestorage.ContentDownloadService"
             android:enabled="false"
             android:exported="true" >
         </service>

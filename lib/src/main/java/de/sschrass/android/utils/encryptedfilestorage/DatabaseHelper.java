@@ -1,4 +1,4 @@
-package de.sschrass.android.utils.encryptedfilesafe;
+package de.sschrass.android.utils.encryptedfilestorage;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
@@ -15,7 +15,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_ID = "_id";
     private static final String COLUMN_CONTENT_ID = "content_id";
     private static final String COLUMN_CONTENT_AVAILABILITY_END = "availability_end";
-
     private static final String DATABASE_CREATE = "create table "
             + TABLE_CONTENTS + "("
             + COLUMN_ID + " integer primary key autoincrement, "
