@@ -20,24 +20,21 @@ public class ContentDataSource {
             DatabaseHelper.COLUMN_CONTENT_AVAILABILITY_END
     };
 
-    public ContentDataSource(Context context) {
-        databaseHelper = new DatabaseHelper(context);
-    }
+    public ContentDataSource(Context context) { databaseHelper = new DatabaseHelper(context); }
+    public void open() throws SQLException { database = databaseHelper.getWritableDatabase(); }
+    public void close() { databaseHelper.close(); }
 
-    public void open() throws SQLException {
-        database = databaseHelper.getWritableDatabase();
-    }
-
-    public void close() {
-        databaseHelper.close();
-    }
-
-    public Content createComment(Content content) {
+    public Content createContent(Content content) {
         ContentValues values = new ContentValues();
         values.put(DatabaseHelper.COLUMN_CONTENT_ID, content.getContentId());
         values.put(DatabaseHelper.COLUMN_CONTENT_AVAILABILITY_END, content.getAvailabilityEnd());
-        long insertId = database.insert(DatabaseHelper.TABLE_CONTENTS, null, values);
-        Cursor cursor = database.query(DatabaseHelper.TABLE_CONTENTS, allColumns, DatabaseHelper.COLUMN_ID + " = " + insertId, null, null, null, null);
+        final String nullColumnHack = null;
+        long insertId = database.insert(DatabaseHelper.TABLE_CONTENTS, nullColumnHack, values);
+        String[] selectionArgs = null;
+        String groupBy = null;
+        String having = null;
+        String orderBy = null;
+        Cursor cursor = database.query(DatabaseHelper.TABLE_CONTENTS, allColumns, DatabaseHelper.COLUMN_ID + " = " + insertId, selectionArgs, groupBy, having, orderBy);
         cursor.moveToFirst();
         Content newContent = cursorToContent(cursor);
         cursor.close();
@@ -46,7 +43,12 @@ public class ContentDataSource {
 
     public List<Content> getAllComments() {
         List<Content> comments = new ArrayList<Content>();
-        Cursor cursor = database.query(DatabaseHelper.TABLE_CONTENTS, allColumns, null, null, null, null, null);
+        String selection = null;
+        String[] selectionArgs = null;
+        String groupBy = null;
+        String having = null;
+        String orderBy = null;
+        Cursor cursor = database.query(DatabaseHelper.TABLE_CONTENTS, allColumns, selection, selectionArgs, groupBy, having, orderBy);
         cursor.moveToFirst();
         while (!cursor.isAfterLast()) {
             Content content = cursorToContent(cursor);
@@ -63,7 +65,8 @@ public class ContentDataSource {
     public void deleteComment(Content content) {
         long id = content.getId();
         System.out.println("Comment deleted with id: " + id);
-        database.delete(DatabaseHelper.TABLE_CONTENTS, DatabaseHelper.COLUMN_ID + " = " + id, null);
+        String[] whereArgs = null;
+        database.delete(DatabaseHelper.TABLE_CONTENTS, DatabaseHelper.COLUMN_ID + " = " + id, whereArgs);
     }
 
     private Content cursorToContent(Cursor cursor) {
