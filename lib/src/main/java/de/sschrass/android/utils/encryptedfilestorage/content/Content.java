@@ -5,6 +5,9 @@ public class Content {
     private String contentId;
     private String availabilityEnd;
 
+    /** C'tor
+     *
+     * */
     public Content(long id, String contentId, String availabilityEnd) {
         this.id = id;
         this.contentId = contentId;
