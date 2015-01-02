@@ -62,7 +62,6 @@ public class EncryptedFileService extends Service {
 
         downloadContentEncrypted(uri, contentId);
 
-        //test
         contentDataSource.createContent(content);
         return super.onStartCommand(intent, flags, startId);
     }
