@@ -3,6 +3,7 @@ package de.sschrass.android.utils.encryptedfilestorage;
 import android.app.Service;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -25,9 +26,10 @@ import de.sschrass.android.utils.encryptedfilestorage.content.ContentDataSource;
 
 public class EncryptedFileService extends Service {
     private static final String TAG = "EncryptedFileService";
+    private EncryptFileBinder encryptFileBinder = new EncryptFileBinder();
     private ContentDataSource contentDataSource;
     private List<Content> contents;
-    private int progress = 0;
+    private int progress = -1;
 
     @Override
     public void onCreate() {
@@ -44,9 +46,7 @@ public class EncryptedFileService extends Service {
         for (Content content : contents) {
             try {
                 if (ISO8601.toCalendar(content.getAvailabilityEnd()).after(ISO8601.toCalendar(ISO8601.now()))) {
-                    if (Storage.deleteContentFromStorage(content.getContentId())) {
-                        contentDataSource.deleteContent(content);
-                    }
+                    deleteContent(content);
                 }
             } catch (ParseException e) { e.printStackTrace(); }
         }
@@ -59,17 +59,16 @@ public class EncryptedFileService extends Service {
         String contentId = intent.getStringExtra("de.sschrass.android.utils.encryptedfilestorage.content.contentId");
         String availabilityEnd = intent.getStringExtra("de.sschrass.android.utils.encryptedfilestorage.content.availabilityEnd");
         Content content = new Content(contentId, availabilityEnd);
-
         downloadContentEncrypted(uri, contentId);
-
         contentDataSource.createContent(content);
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
-    public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        throw new UnsupportedOperationException("Not yet implemented");
+    public IBinder onBind(Intent intent) { return encryptFileBinder; }
+
+    public class EncryptFileBinder extends Binder {
+        EncryptedFileService getService() { return EncryptedFileService.this; }
     }
 
     @Override
@@ -82,7 +81,7 @@ public class EncryptedFileService extends Service {
         InputStream clearInputStream;
         OutputStream encryptedOutputStream;
         HttpURLConnection urlConnection = null;
-        this.progress = 0;
+        this.progress = -1;
         try {
             urlConnection = connect(uri);
             long contentLength = urlConnection.getContentLength();
@@ -133,6 +132,12 @@ public class EncryptedFileService extends Service {
 
     private void close(ContentDataSource contentDataSource) {
         if (contentDataSource != null) { contentDataSource.close(); }
+    }
+
+    private void deleteContent(Content content) {
+        if (Storage.deleteContentFromStorage(content)) {
+            contentDataSource.deleteContent(content);
+        }
     }
 
     public int getProgress() { return progress; }

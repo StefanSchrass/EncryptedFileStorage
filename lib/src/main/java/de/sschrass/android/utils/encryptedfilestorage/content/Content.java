@@ -1,5 +1,9 @@
 package de.sschrass.android.utils.encryptedfilestorage.content;
 
+import android.content.ContentValues;
+
+import de.sschrass.android.utils.encryptedfilestorage.database.DatabaseHelper;
+
 public class Content {
     private long id = -1L;
     private String contentId;
@@ -25,4 +29,10 @@ public class Content {
     public void setContentId(String contentId) { this.contentId = contentId; }
     public String getAvailabilityEnd() { return availabilityEnd; }
     public void setAvailabilityEnd(String availabilityEnd) { this.availabilityEnd = availabilityEnd; }
+    public ContentValues getContentValues(){
+        ContentValues values = new ContentValues();
+        values.put(DatabaseHelper.COLUMN_CONTENT_ID, contentId);
+        values.put(DatabaseHelper.COLUMN_CONTENT_AVAILABILITY_END, availabilityEnd);
+        return values;
+    }
 }

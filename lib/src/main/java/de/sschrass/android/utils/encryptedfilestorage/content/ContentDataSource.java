@@ -1,6 +1,5 @@
 package de.sschrass.android.utils.encryptedfilestorage.content;
 
-import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -25,11 +24,8 @@ public class ContentDataSource {
     public void close() { databaseHelper.close(); }
 
     public Content createContent(Content content) {
-        ContentValues values = new ContentValues();
-        values.put(DatabaseHelper.COLUMN_CONTENT_ID, content.getContentId());
-        values.put(DatabaseHelper.COLUMN_CONTENT_AVAILABILITY_END, content.getAvailabilityEnd());
         final String nullColumnHack = null;
-        long insertId = database.insert(DatabaseHelper.TABLE_CONTENTS, nullColumnHack, values);
+        long insertId = database.insert(DatabaseHelper.TABLE_CONTENTS, nullColumnHack, content.getContentValues());
         String[] selectionArgs = null;
         String groupBy = null;
         String having = null;
@@ -55,16 +51,27 @@ public class ContentDataSource {
             contents.add(content);
             cursor.moveToNext();
         }
-        // make sure to close the cursor
         cursor.close();
         return contents;
     }
 
-    // TODO update
+    public Content updateContent(Content content) {
+        final String whereClause = DatabaseHelper.COLUMN_ID + "=" + content.getId();
+        final String[] whereArgs = null;
+        database.update(DatabaseHelper.TABLE_CONTENTS, content.getContentValues(), whereClause, whereArgs);
+        String[] selectionArgs = null;
+        String groupBy = null;
+        String having = null;
+        String orderBy = null;
+        Cursor cursor = database.query(DatabaseHelper.TABLE_CONTENTS, allColumns, DatabaseHelper.COLUMN_ID + " = " + content.getId(), selectionArgs, groupBy, having, orderBy);
+        cursor.moveToFirst();
+        Content updatedContent = cursorToContent(cursor);
+        cursor.close();
+        return updatedContent;
+    }
 
     public void deleteContent(Content content) {
         long id = content.getId();
-
         if (id > -1L) {
             String[] whereArgs = null;
             database.delete(DatabaseHelper.TABLE_CONTENTS, DatabaseHelper.COLUMN_ID + " = " + id, whereArgs);
