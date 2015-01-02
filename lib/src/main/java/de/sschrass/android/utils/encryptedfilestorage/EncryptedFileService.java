@@ -38,8 +38,6 @@ public class EncryptedFileService extends Service {
         this.contents = this.contentDataSource.getAllContents();
         removeAllOutdatedContents(this.contents);
 
-
-
     }
 
     private void removeAllOutdatedContents(List<Content> contents) {
@@ -64,6 +62,7 @@ public class EncryptedFileService extends Service {
 
         downloadContentEncrypted(uri, contentId);
 
+        //test
         contentDataSource.createContent(content);
         return super.onStartCommand(intent, flags, startId);
     }
