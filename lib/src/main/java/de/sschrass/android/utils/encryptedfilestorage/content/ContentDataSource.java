@@ -41,8 +41,8 @@ public class ContentDataSource {
         return newContent;
     }
 
-    public List<Content> getAllComments() {
-        List<Content> comments = new ArrayList<Content>();
+    public List<Content> getAllContents() {
+        List<Content> contents = new ArrayList<Content>();
         String selection = null;
         String[] selectionArgs = null;
         String groupBy = null;
@@ -52,21 +52,23 @@ public class ContentDataSource {
         cursor.moveToFirst();
         while (!cursor.isAfterLast()) {
             Content content = cursorToContent(cursor);
-            comments.add(content);
+            contents.add(content);
             cursor.moveToNext();
         }
         // make sure to close the cursor
         cursor.close();
-        return comments;
+        return contents;
     }
 
     // TODO update
 
-    public void deleteComment(Content content) {
+    public void deleteContent(Content content) {
         long id = content.getId();
-        System.out.println("Comment deleted with id: " + id);
-        String[] whereArgs = null;
-        database.delete(DatabaseHelper.TABLE_CONTENTS, DatabaseHelper.COLUMN_ID + " = " + id, whereArgs);
+
+        if (id > -1L) {
+            String[] whereArgs = null;
+            database.delete(DatabaseHelper.TABLE_CONTENTS, DatabaseHelper.COLUMN_ID + " = " + id, whereArgs);
+        }
     }
 
     private Content cursorToContent(Cursor cursor) {

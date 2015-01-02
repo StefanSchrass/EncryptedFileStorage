@@ -1,15 +1,20 @@
 package de.sschrass.android.utils.encryptedfilestorage.content;
 
 public class Content {
-    private long id;
+    private long id = -1L;
     private String contentId;
     private String availabilityEnd;
 
-    /** C'tor
-     *
+    /**
+     * C'tors
      * */
     public Content(long id, String contentId, String availabilityEnd) {
         this.id = id;
+        this.contentId = contentId;
+        this.availabilityEnd = availabilityEnd;
+    }
+
+    public Content(String contentId, String availabilityEnd) {
         this.contentId = contentId;
         this.availabilityEnd = availabilityEnd;
     }
