@@ -29,7 +29,6 @@ public class EncryptedFileService extends Service {
     private List<Content> contents;
     private int progress = 0;
 
-
     @Override
     public void onCreate() {
         super.onCreate();
