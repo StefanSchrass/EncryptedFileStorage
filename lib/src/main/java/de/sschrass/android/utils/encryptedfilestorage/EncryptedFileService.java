@@ -7,7 +7,6 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,8 +14,11 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.List;
+
+import javax.crypto.Cipher;
+import javax.crypto.CipherOutputStream;
+import javax.crypto.spec.SecretKeySpec;
 
 import de.sschrass.android.utils.encryptedfilestorage.content.Content;
 import de.sschrass.android.utils.encryptedfilestorage.content.ContentDataSource;
@@ -25,6 +27,7 @@ public class EncryptedFileService extends Service {
     private static final String TAG = "EncryptedFileService";
     private ContentDataSource contentDataSource;
     private List<Content> contents;
+    private int progress = 0;
 
 
     @Override
@@ -63,54 +66,64 @@ public class EncryptedFileService extends Service {
         if (contentDataSource != null) { contentDataSource.close(); }
     }
 
-    private void downloadContentAndEncrypt(Uri uri, String contentId) throws Exception{
-        InputStream inputStream = null;
-        OutputStream outputStream = null;
+    private void downloadContentEncrypted(Uri uri, String contentId) throws Exception{
+        InputStream clearInputStream = null;
+        OutputStream encryptedOutputStream = null;
         HttpURLConnection urlConnection = null;
+        this.progress = 0;
         try {
-            URL url = new URL(uri.toString());
-            urlConnection = (HttpURLConnection) url.openConnection();
-            urlConnection.connect();
+            urlConnection = connect(uri);
+            int contentLength = urlConnection.getContentLength();
+            clearInputStream = urlConnection.getInputStream();
+            encryptedOutputStream = new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/" + contentId + ".ecd");
 
-            if (urlConnection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                throw new Exception("Server returned HTTP " + urlConnection.getResponseCode() + " " + urlConnection.getResponseMessage());
+            // Key Length should be 128, 192 or 256 bit => i.e. 16 byte
+            SecretKeySpec secretKeySpec = new SecretKeySpec("testtesttesttest".getBytes(), "AES"); //TODO algorithm, pw
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
+            CipherOutputStream cipherOutputStream = new CipherOutputStream(encryptedOutputStream, cipher);
+            int length;
+            int offset = 0;
+            int absProgress = 0;
+            byte[] buffer = new byte[8];
+            while((length = clearInputStream.read(buffer)) != -1) {
+                if (contentLength > -1) {
+                    absProgress += length;
+                    this.progress = (contentLength / 100) * absProgress;
+                } else { this.progress = -1; }
+                cipherOutputStream.write(buffer, offset, length);
             }
-
-            int fileLength = urlConnection.getContentLength();
-            inputStream = urlConnection.getInputStream();
-            outputStream = new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/" + contentId + ".enc");
+            cipherOutputStream.flush();
+            cipherOutputStream.close();
+            clearInputStream.close();
+            disconnect(urlConnection);
         }
-        catch (IOException ioe) { ioe.printStackTrace(); }
+        catch (IOException ioe) {
+            ioe.printStackTrace();
+            disconnect(urlConnection);
+        }
     }
+
+    private HttpURLConnection connect(Uri uri) throws Exception {
+        URL url = new URL(uri.toString());
+        HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+        urlConnection.connect();
+
+        if (urlConnection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+            throw new Exception("Server returned HTTP " + urlConnection.getResponseCode() + " " + urlConnection.getResponseMessage());
+        }
+        return urlConnection;
+    }
+
+    private void disconnect(HttpURLConnection urlConnection) {
+        if (urlConnection != null) { urlConnection.disconnect(); }
+    }
+
+    public int getProgress() { return progress; }
 }
 
 
 
-//    @Override
-//    protected String doInBackground(String... sUrl) {
-//        InputStream input = null;
-//        OutputStream output = null;
-//        HttpURLConnection connection = null;
-//        try {
-//            URL url = new URL(sUrl[0]);
-//            connection = (HttpURLConnection) url.openConnection();
-//            connection.connect();
-//
-//            // expect HTTP 200 OK, so we don't mistakenly save error report
-//            // instead of the file
-//            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-//                return "Server returned HTTP " + connection.getResponseCode()
-//                        + " " + connection.getResponseMessage();
-//            }
-//
-//            // this will be useful to display download percentage
-//            // might be -1: server did not report the length
-//            int fileLength = connection.getContentLength();
-//
-//            // download the file
-//            input = connection.getInputStream();
-//            output = new FileOutputStream("/sdcard/file_name.extension");
-//
 //            byte data[] = new byte[4096];
 //            long total = 0;
 //            int count;
