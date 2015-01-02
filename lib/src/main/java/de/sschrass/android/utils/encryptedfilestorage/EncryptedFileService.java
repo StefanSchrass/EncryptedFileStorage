@@ -39,6 +39,7 @@ public class EncryptedFileService extends Service {
         removeAllOutdatedContents(this.contents);
 
 
+
     }
 
     private void removeAllOutdatedContents(List<Content> contents) {
