@@ -3,23 +3,23 @@ package de.sschrass.android.utils.encryptedfilestorage;
 import android.app.Service;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.util.List;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.spec.SecretKeySpec;
 
+import de.sschrass.android.utils.encryptedfilestorage.Storage.Storage;
 import de.sschrass.android.utils.encryptedfilestorage.content.Content;
 import de.sschrass.android.utils.encryptedfilestorage.content.ContentDataSource;
 
@@ -34,11 +34,23 @@ public class EncryptedFileService extends Service {
         super.onCreate();
         Log.d(TAG, "creating service");
 
-        contentDataSource = new ContentDataSource(this);
-        try { contentDataSource.open(); }
-        catch (SQLException e) { e.printStackTrace(); }
-        contents = contentDataSource.getAllContents();
+        this.contentDataSource = open(new ContentDataSource(this));
+        this.contents = this.contentDataSource.getAllContents();
+        removeAllOutdatedContents(this.contents);
 
+
+    }
+
+    private void removeAllOutdatedContents(List<Content> contents) {
+        for (Content content : contents) {
+            try {
+                if (ISO8601.toCalendar(content.getAvailabilityEnd()).after(ISO8601.toCalendar(ISO8601.now()))) {
+                    if (Storage.deleteContentFromStorage(content.getContentId())) {
+                        contentDataSource.deleteContent(content);
+                    }
+                }
+            } catch (ParseException e) { e.printStackTrace(); }
+        }
     }
 
     @Override
@@ -48,6 +60,8 @@ public class EncryptedFileService extends Service {
         String contentId = intent.getStringExtra("de.sschrass.android.utils.encryptedfilestorage.content.contentId");
         String availabilityEnd = intent.getStringExtra("de.sschrass.android.utils.encryptedfilestorage.content.availabilityEnd");
         Content content = new Content(contentId, availabilityEnd);
+
+        downloadContentEncrypted(uri, contentId);
 
         contentDataSource.createContent(content);
         return super.onStartCommand(intent, flags, startId);
@@ -62,19 +76,19 @@ public class EncryptedFileService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (contentDataSource != null) { contentDataSource.close(); }
+        close(contentDataSource);
     }
 
-    private void downloadContentEncrypted(Uri uri, String contentId) throws Exception{
-        InputStream clearInputStream = null;
-        OutputStream encryptedOutputStream = null;
+    private void downloadContentEncrypted(Uri uri, String contentId) {
+        InputStream clearInputStream;
+        OutputStream encryptedOutputStream;
         HttpURLConnection urlConnection = null;
         this.progress = 0;
         try {
             urlConnection = connect(uri);
-            int contentLength = urlConnection.getContentLength();
+            long contentLength = urlConnection.getContentLength();
             clearInputStream = urlConnection.getInputStream();
-            encryptedOutputStream = new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + "/" + contentId + ".ecd");
+            encryptedOutputStream = new FileOutputStream(Storage.PATH + "/" + contentId + Storage.EXTENSION);
 
             // Key Length should be 128, 192 or 256 bit => i.e. 16 byte
             SecretKeySpec secretKeySpec = new SecretKeySpec("testtesttesttest".getBytes(), "AES"); //TODO algorithm, pw
@@ -83,24 +97,18 @@ public class EncryptedFileService extends Service {
             CipherOutputStream cipherOutputStream = new CipherOutputStream(encryptedOutputStream, cipher);
             int length;
             int offset = 0;
-            int absProgress = 0;
+            long absProgress = 0L;
             byte[] buffer = new byte[8];
             while((length = clearInputStream.read(buffer)) != -1) {
                 if (contentLength > -1) {
                     absProgress += length;
-                    this.progress = (contentLength / 100) * absProgress;
+                    this.progress = (int) ((contentLength / 100) * absProgress);
                 } else { this.progress = -1; }
                 cipherOutputStream.write(buffer, offset, length);
             }
-            cipherOutputStream.flush();
-            cipherOutputStream.close();
-            clearInputStream.close();
-            disconnect(urlConnection);
         }
-        catch (IOException ioe) {
-            ioe.printStackTrace();
-            disconnect(urlConnection);
-        }
+        catch (Exception e) { e.printStackTrace(); }
+        finally { disconnect(urlConnection); }
     }
 
     private HttpURLConnection connect(Uri uri) throws Exception {
@@ -118,39 +126,15 @@ public class EncryptedFileService extends Service {
         if (urlConnection != null) { urlConnection.disconnect(); }
     }
 
+    private ContentDataSource open(ContentDataSource contentDataSource) {
+        try { contentDataSource.open(); }
+        catch (SQLException e) { e.printStackTrace(); }
+        return contentDataSource;
+    }
+
+    private void close(ContentDataSource contentDataSource) {
+        if (contentDataSource != null) { contentDataSource.close(); }
+    }
+
     public int getProgress() { return progress; }
 }
-
-
-
-//            byte data[] = new byte[4096];
-//            long total = 0;
-//            int count;
-//            while ((count = input.read(data)) != -1) {
-//                // allow canceling with back button
-//                if (isCancelled()) {
-//                    input.close();
-//                    return null;
-//                }
-//                total += count;
-//                // publishing the progress....
-//                if (fileLength > 0) // only if total length is known
-//                    publishProgress((int) (total * 100 / fileLength));
-//                output.write(data, 0, count);
-//            }
-//        } catch (Exception e) {
-//            return e.toString();
-//        } finally {
-//            try {
-//                if (output != null)
-//                    output.close();
-//                if (input != null)
-//                    input.close();
-//            } catch (IOException ignored) {
-//            }
-//
-//            if (connection != null)
-//                connection.disconnect();
-//        }
-//        return null;
-//    }
