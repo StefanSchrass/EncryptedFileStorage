@@ -2,9 +2,8 @@ package de.sschrass.android.utils.encryptedfilestorage;
 
 import android.app.Service;
 import android.content.Intent;
-import android.net.Uri;
-import android.os.Binder;
-import android.os.IBinder;
+import android.os.*;
+import android.os.Process;
 import android.util.Log;
 
 import java.io.FileOutputStream;
@@ -14,7 +13,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherOutputStream;
@@ -26,49 +27,60 @@ import de.sschrass.android.utils.encryptedfilestorage.content.ContentDataSource;
 
 public class EncryptedFileService extends Service {
     private static final String TAG = "EncryptedFileService";
-    private EncryptFileBinder encryptFileBinder = new EncryptFileBinder();
+    private Looper serviceLooper;
+    private ServiceHandler serviceHandler;
     private ContentDataSource contentDataSource;
     private List<Content> contents;
-    private int progress = -1;
+    private Map<String, Integer> progresses = new HashMap<String, Integer>();
 
     @Override
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "creating service");
 
+        HandlerThread handlerThread = new HandlerThread("EncryptedFileServiceThread", Process.THREAD_PRIORITY_BACKGROUND);
+        handlerThread.start();
+
+        serviceLooper = handlerThread.getLooper();
+        serviceHandler = new ServiceHandler(serviceLooper);
+
         this.contentDataSource = open(new ContentDataSource(this));
         this.contents = this.contentDataSource.getAllContents();
-        removeAllOutdatedContents(this.contents);
+        purgeAllOutdatedContents(this.contents);
 
     }
 
-    private void removeAllOutdatedContents(List<Content> contents) {
-        for (Content content : contents) {
-            try {
-                if (ISO8601.toCalendar(content.getAvailabilityEnd()).after(ISO8601.toCalendar(ISO8601.now()))) {
-                    deleteContent(content);
-                }
-            } catch (ParseException e) { e.printStackTrace(); }
+    private final class ServiceHandler extends Handler {
+        public ServiceHandler(Looper looper) { super(looper); }
+
+        @Override
+        public void handleMessage(Message msg) {
+            Bundle msgData = msg.getData();
+            String url = msgData.getString("de.sschrass.android.utils.encryptedfilestorage.content.url");
+            String contentId = msgData.getString("de.sschrass.android.utils.encryptedfilestorage.content.contentId");
+            String availabilityEnd = msgData.getString("de.sschrass.android.utils.encryptedfilestorage.content.availabilityEnd");
+            Content content = new Content(contentId, availabilityEnd);
+            downloadContentEncrypted(url, contentId);
+            contentDataSource.createContent(content);
+            stopSelf(msg.arg1);
         }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "Command received");
-        Uri uri = intent.getData();
-        String contentId = intent.getStringExtra("de.sschrass.android.utils.encryptedfilestorage.content.contentId");
-        String availabilityEnd = intent.getStringExtra("de.sschrass.android.utils.encryptedfilestorage.content.availabilityEnd");
-        Content content = new Content(contentId, availabilityEnd);
-        downloadContentEncrypted(uri, contentId);
-        contentDataSource.createContent(content);
-        return super.onStartCommand(intent, flags, startId);
+        Log.d(TAG, "startCommand received");
+
+        Message message = serviceHandler.obtainMessage();
+        message.arg1 = startId;
+        message.setData(intent.getExtras());
+        serviceHandler.sendMessage(message);
+
+        return START_STICKY;
     }
 
     @Override
-    public IBinder onBind(Intent intent) { return encryptFileBinder; }
-
-    public class EncryptFileBinder extends Binder {
-        EncryptedFileService getService() { return EncryptedFileService.this; }
+    public IBinder onBind(Intent intent) {
+        throw new UnsupportedOperationException("Binding to this service is not implemented.");
     }
 
     @Override
@@ -77,13 +89,13 @@ public class EncryptedFileService extends Service {
         close(contentDataSource);
     }
 
-    private void downloadContentEncrypted(Uri uri, String contentId) {
+    private void downloadContentEncrypted(String url, String contentId) {
         InputStream clearInputStream;
         OutputStream encryptedOutputStream;
         HttpURLConnection urlConnection = null;
-        this.progress = -1;
+        progresses.put(contentId, -1);
         try {
-            urlConnection = connect(uri);
+            urlConnection = connect(url);
             long contentLength = urlConnection.getContentLength();
             clearInputStream = urlConnection.getInputStream();
             encryptedOutputStream = new FileOutputStream(Storage.PATH + "/" + contentId + Storage.EXTENSION);
@@ -100,8 +112,8 @@ public class EncryptedFileService extends Service {
             while((length = clearInputStream.read(buffer)) != -1) {
                 if (contentLength > -1) {
                     absProgress += length;
-                    this.progress = (int) ((contentLength / 100) * absProgress);
-                } else { this.progress = -1; }
+                    this.progresses.put(contentId, (int) ((contentLength / 100) * absProgress));
+                }
                 cipherOutputStream.write(buffer, offset, length);
             }
         }
@@ -109,8 +121,8 @@ public class EncryptedFileService extends Service {
         finally { disconnect(urlConnection); }
     }
 
-    private HttpURLConnection connect(Uri uri) throws Exception {
-        URL url = new URL(uri.toString());
+    private HttpURLConnection connect(String sUrl) throws Exception {
+        URL url = new URL(sUrl);
         HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
         urlConnection.connect();
 
@@ -140,5 +152,15 @@ public class EncryptedFileService extends Service {
         }
     }
 
-    public int getProgress() { return progress; }
+    public Map<String, Integer> getProgresses() { return progresses; }
+
+    private void purgeAllOutdatedContents(List<Content> contents) {
+        for (Content content : contents) {
+            try {
+                if (ISO8601.toCalendar(content.getAvailabilityEnd()).after(ISO8601.toCalendar(ISO8601.now()))) {
+                    deleteContent(content);
+                }
+            } catch (ParseException e) { e.printStackTrace(); }
+        }
+    }
 }
